@@ -3,6 +3,10 @@ from firebase_admin import firestore
 
 test = Blueprint('test', __name__)
 
+@test.route('/')
+def index():
+    return 'Hello, World!'
+
 @test.route('/add-test-item', methods=['POST'])
 def add_test_item():
     data = request.json

@@ -1,17 +1,18 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
 event = Blueprint('event', __name__)
 
+events = []  # Assuming a global list of events
 
 @event.route('/events', methods=['GET'])
-def get_events():
+def get_all_events():
     try:
         # Implement logic to retrieve all events
         return jsonify(events)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@event.route('/events/{eventID}', methods=['GET'])
+@event.route('/events/<int:event_id>', methods=['GET'])
 def get_event(event_id):
     try:
         # Implement logic to retrieve a specific event
@@ -23,26 +24,26 @@ def get_event(event_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@event.route('/events/{search}', methods=['GET'])
-def get_events(search):
+@event.route('/events/search/<search_term>', methods=['GET'])
+def search_events(search_term):
     try:
         # Implement logic to retrieve all events based on search
         return jsonify(events)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@event.route('/events/{userID}', methods=['GET'])
-def get_events(search):
+@event.route('/events/user/<int:user_id>', methods=['GET'])
+def get_user_events(user_id):
     try:
         # Implement logic to retrieve all events based on user recommendation
         return jsonify(events)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@event.route('/events/{userID}/interested', methods=['GET'])
-def get_events(search):
+@event.route('/events/user/<int:user_id>/interested', methods=['GET'])
+def get_interested_events(user_id):
     try:
-        # Implement logic to retrieve  all events that the user is interested in.
+        # Implement logic to retrieve all events that the user is interested in
         return jsonify(events)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -57,7 +58,7 @@ def create_event():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@event.route('/events/{eventID}', methods=['PUT'])
+@event.route('/events/<int:event_id>', methods=['PUT'])
 def update_event(event_id):
     try:
         # Implement logic to update a specific event
@@ -67,7 +68,7 @@ def update_event(event_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@event.route('/events/{eventID}', methods=['DELETE'])
+@event.route('/events/<int:event_id>', methods=['DELETE'])
 def delete_event(event_id):
     try:
         # Implement logic to delete a specific event
