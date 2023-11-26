@@ -6,3 +6,7 @@ event = Blueprint('event', __name__)
 def list_events():
     # Logic to list events
     return jsonify({"events": []}), 200
+
+@event.route('/')
+def index():
+    return 'Hello, World!'
