@@ -21,7 +21,10 @@ def create_app():
 
     # Initialize Firebase
     firebase_cred = credentials.Certificate(service_account_info)
-    firebase_admin.initialize_app(firebase_cred)
+    firebase_admin.initialize_app(firebase_cred, {
+        'storageBucket': 'socialsync-35f38.appspot.com'
+    })
+    print("Firebase Initialized")  # Confirm initialization
 
     app.register_blueprint(auth)
     app.register_blueprint(event)
