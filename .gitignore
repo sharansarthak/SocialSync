@@ -2,3 +2,4 @@ myenv/*
 socialsync-35f38-firebase-adminsdk-krv15-f56e160fdb.json
 ace-axon-345319-22828ff20a8b.json
 app/__pycache__/*
+__pycache__/config.cpython-39.pyc
