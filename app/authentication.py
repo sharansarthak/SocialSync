@@ -14,7 +14,7 @@ pb = pyrebase.initialize_app(json.load(open('fbconfig.json')))
 firebase = firebase_admin.initialize_app(cred)
 pyrebase_auth = pb.auth()
 db = pb.database()
-storage = pb.storage()
+pb_storage = pb.storage()
 
 def check_token(f):
     @wraps(f)
@@ -94,54 +94,61 @@ def delete_user(userID):
 
 
 @authentication.route('/api/users/picture/<userID>', methods=['POST'])
+@check_token
 def upload_picture(userID):
     try:
         # Check if 'picture' is present in the request files
-        if 'picture' not in request.files:
+        if 'image' not in request.files:
             return jsonify({'error': 'No file part'}), 400
 
-        file = request.files['picture']
-
+        file = request.files['image']
         # Check if the filename is not empty
         if file.filename == '':
             return jsonify({'error': 'No selected file'}), 400
 
         # Validate that the user ID is provided
-        user_id = request.form.get('userId')
-        if not user_id:
+        if not userID:
             return jsonify({'error': 'User ID is missing'}), 400
 
         # Check if the user exists in Firestore
-        user_doc = db.child('users').child(user_id).get()
-        if not user_doc.exists:
+        user_doc = db.child('users').child(userID).get()
+        print(user_doc.val(), type(user_doc))
+        if user_doc.val() is None:
             return jsonify({'error': 'User not found'}), 404
 
         filename = secure_filename(file.filename)
 
         # Define the path where the file will be uploaded
-        storage.child("images/{userID}").put(file)
-
+        path = "images/" + userID
+        print(path)
+        pb_storage.child(path).put(file)
+        print(filename)
 
         # Make the blob publicly accessible
-        url = storage.child("images/{userID}").get_url()
-
+        url = pb_storage.child(path).get_url()
+        print(url)
         # Update the user's document in Firestore with the picture URL
-        db.child('users').child(user_id).push({'profile_picture_url': url})
+        user_doc_dict =  user_doc.val()
+        user_doc_dict['picture_url'] = url
+        print(str((json.dumps(user_doc_dict))))
+        db.child('users').child(userID).remove()
+        db.child('users').child(userID).set(user_doc_dict)
 
         return jsonify({'message': 'Picture uploaded successfully', 'url': url})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
-# @authentication.route('/users/picture/<userID>', methods=['GET'])
-# def get_picture(userID):
-#     try:
-#         user_doc = db.collection('users').document(userID).get()
-#         if not user_doc.exists:
-#             return jsonify({'error': 'User not found'}), 404
+@authentication.route('/api/users/picture/<userID>', methods=['GET'])
+@check_token
+def get_picture(userID):
+    try:
+        user_doc = db.child('users').child(userID).get()
+        if user_doc.val() is None:
+            return jsonify({'error': 'User not found'}), 404
 
-#         user_data = user_doc.to_dict()
-#         picture_url = user_data.get('profile_picture_url', 'No picture URL set')
-#         return jsonify({'message': 'Picture found successfully', 'url': picture_url})
-#     except Exception as e:
-#         return jsonify({'error': str(e)}), 500
+        user_data = user_doc.val()
+        picture_url = user_data.get('picture_url')
+        return jsonify({'message': 'Picture found successfully', 'url': picture_url})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
