@@ -99,7 +99,7 @@ def login():
 
     try:
         logging.debug(f"Attempting to authenticate user: {email}")
-        user = auth.sign_in_with_email_and_password(email, password)
+        user = pb.auth().sign_in_with_email_and_password(email, password)
         jwt = user['idToken']
         localID = user.get("localId")
         logging.info(f"User authenticated successfully: {email}")
