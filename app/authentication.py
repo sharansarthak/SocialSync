@@ -9,6 +9,7 @@ from functools import wraps
 from app.helpers import is_strong_password, is_valid_email
 from flask_cors import CORS, cross_origin
 import logging
+from requests.exceptions import HTTPError  # Import HTTPError from requests module
 
 authentication = Blueprint('authentication', __name__)
 
@@ -107,12 +108,18 @@ def login():
         localID = user.get("localId")
         logging.info(f"User authenticated successfully: {email}")
         return jsonify({'token': jwt, 'userID': localID}), 200
-    except auth.AuthError as e:
-        logging.error(f"Authentication failed for user {email}: {e}")
-        return jsonify({'message': 'Invalid credentials'}), 401
+    except HTTPError as httpErr:
+        # Extracting the detailed error message from HTTPError
+        error_message = json.loads(httpErr.args[1])['error']['message']
+        logging.error(f"Authentication failed for user {email}: {error_message}")
+        if error_message == "INVALID_LOGIN_CREDENTIALS":
+            return jsonify({'message': 'Invalid credentials'}), 401
+        else:
+            return jsonify({'message': 'Authentication failed'}), 400
     except Exception as e:
         logging.exception("Unexpected error occurred during login")
         return jsonify({'message': 'There was an error logging in'}), 500
+
 
 @authentication.route('/api/users/<userID>', methods=['PUT'])
 @cross_origin(supports_credentials=True)
