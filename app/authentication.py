@@ -7,6 +7,7 @@ from firebase_admin import credentials, auth
 from werkzeug.utils import secure_filename
 from functools import wraps
 from app.helpers import is_strong_password, is_valid_email
+from flask_cors import CORS, cross_origin
 import logging
 
 authentication = Blueprint('authentication', __name__)
@@ -58,6 +59,7 @@ def check_token(f):
 
 #Api route to sign up a new user, returns user data with token when successful, also adds the user in the database
 @authentication.route('/api/signup', methods=['POST'] )
+@cross_origin(supports_credentials=True)
 def signup():
     data = request.json
     name = data.get('name')
@@ -86,6 +88,7 @@ def signup():
     
 #Api route to get a new token for a valid user
 @authentication.route('/api/login', methods=['POST'])
+@cross_origin(supports_credentials=True)
 def login():
     logging.debug("Login request received")
 
@@ -112,6 +115,7 @@ def login():
         return jsonify({'message': 'There was an error logging in'}), 500
 
 @authentication.route('/api/users/<userID>', methods=['PUT'])
+@cross_origin(supports_credentials=True)
 @check_token
 def update_user(userID):
     try:
@@ -123,6 +127,7 @@ def update_user(userID):
         return jsonify({'error': str(e)}), 500
 
 @authentication.route('/api/users/<userID>', methods=['DELETE'])
+@cross_origin(supports_credentials=True)
 @check_token
 def delete_user(userID):
     try:
@@ -133,6 +138,7 @@ def delete_user(userID):
 
 
 @authentication.route('/api/users/picture/<userID>', methods=['POST'])
+@cross_origin(supports_credentials=True)
 @check_token
 def upload_picture(userID):
     try:
@@ -178,6 +184,7 @@ def upload_picture(userID):
         return jsonify({'error': str(e)}), 500
     
 @authentication.route('/api/users/picture/<userID>', methods=['GET'])
+@cross_origin(supports_credentials=True)
 @check_token
 def get_picture(userID):
     try:
