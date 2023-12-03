@@ -8,3 +8,5 @@ __pycache__/config.cpython-39.pyc
 fbAdminConfig.json
 fbconfig.json
 sgdf.json
+setupenv.sh
+setupEnvVar.py
