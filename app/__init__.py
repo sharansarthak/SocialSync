@@ -3,6 +3,7 @@ from flask_cors import CORS, cross_origin
 from .authentication import authentication
 from .event import event
 from .test import test
+from .api_app import api_app
 import os
 import base64
 import firebase_admin

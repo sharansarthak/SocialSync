@@ -14,3 +14,4 @@ authentication.py
 event.py
 models.py
 test.py
+setup.sh
