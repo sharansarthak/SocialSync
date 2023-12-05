@@ -1,8 +1,5 @@
 from flask import Flask
 from flask_cors import CORS, cross_origin
-from .authentication import authentication
-from .event import event
-from .test import test
 from .api_app import api_app
 import os
 import base64
@@ -20,9 +17,5 @@ def create_app():
     CORS(app, support_credentials=True)
 
     app.register_blueprint(api_app)
-
-    # app.register_blueprint(authentication)
-    # app.register_blueprint(event)
-    # app.register_blueprint(test)
 
     return app
