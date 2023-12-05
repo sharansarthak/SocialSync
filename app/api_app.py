@@ -1,8 +1,11 @@
+from http.client import BAD_REQUEST
+import logging
 from flask import Blueprint, jsonify, request, current_app
 import json
 import pyrebase
 import firebase_admin
 from firebase_admin import credentials, auth
+from requests import HTTPError
 from werkzeug.utils import secure_filename
 from functools import wraps
 from app.helpers import is_strong_password, is_valid_email
@@ -59,50 +62,79 @@ def check_token(f):
 
 
 #Api route to sign up a new user, returns user data with token when successful, also adds the user in the database
-@api_app.route('/api/signup', methods=['POST'] )
+@api_app.route('/api/signup', methods=['POST'])
 @cross_origin(supports_credentials=True)
 def signup():
-    data = request.json
-    name = data.get('name')
-    email = data.get('email')
-    password = data.get('password')
-    data['events_interested'] = ""
-    data['events_created'] = ""
-    data['events_enrolled'] = ""
-    data['description'] = ""
-    age = data.get('age') 
-    data['rating'] = "5"
-
-    print(data)
-    if email is None or password is None or name is None or age is None:
-        return {'message': 'Error missing email or password'},400
-
     try:
-        user = pyrebase_auth.create_user_with_email_and_password(
-            email=email,
-            password=password
-        )
+        data = request.get_json()
+        name = data.get('name')
+        email = data.get('email')
+        password = data.get('password')
+        age = data.get('age')
 
+        # Validating required fields
+        if not all([email, password, name, age]):
+            return jsonify({'message': 'Error: Missing email, password, name, or age'}), 400
+
+        # Creating a new user
+        user = pyrebase_auth.create_user_with_email_and_password(email, password)
         localID = user.get("localId")
-        db.child("users").child(localID).set(data)
-        return {'{user}'},200
+
+        # Setting additional default values
+        user_data = {
+            'name': name,
+            'email': email,
+            'age': age,
+            'events_interested': "",
+            'events_created': "",
+            'events_enrolled': "",
+            'description': "",
+            'rating': "5"
+        }
+
+        # Save the user data in the database
+        db.child("users").child(localID).set(user_data)
+        return jsonify({'message': 'User created successfully', 'user': user}), 200
+
+    except BAD_REQUEST as bad_request_exception:
+        # Handling bad request errors
+        return jsonify({'message': 'Invalid data format: ' + str(bad_request_exception)}), 400
     except Exception as e:
-        return {'message': str(e)},400
+        # Handling other exceptions
+        return jsonify({'message': 'An error occurred during signup: ' + str(e)}), 500
     
 #Api route to get a new token for a valid user
-@api_app.route('/api/login', methods=['GET'])
+@api_app.route('/api/login', methods=['POST'])
 @cross_origin(supports_credentials=True)
 def login():
+    logging.debug("Login request received")
+
     data = request.json
     email = data.get('email')
     password = data.get('password')
+
+    if not email or not password:
+        logging.warning("Missing email or password in request")
+        return jsonify({'message': 'Email and password are required'}), 400
+
     try:
+        logging.debug(f"Attempting to authenticate user: {email}")
         user = pb.auth().sign_in_with_email_and_password(email, password)
         jwt = user['idToken']
         localID = user.get("localId")
-        return {'token': jwt, 'userID': localID}, 200
-    except:
-        return {'message': 'There was an error logging in'},400
+        logging.info(f"User authenticated successfully: {email}")
+        return jsonify({'token': jwt, 'userID': localID}), 200
+    except HTTPError as httpErr:
+        # Extracting the detailed error message from HTTPError
+        error_message = json.loads(httpErr.args[1])['error']['message']
+        logging.error(f"Authentication failed for user {email}: {error_message}")
+        if error_message == "INVALID_LOGIN_CREDENTIALS":
+            return jsonify({'message': 'Invalid credentials'}), 401
+        else:
+            return jsonify({'message': 'Authentication failed'}), 400
+    except Exception as e:
+        logging.exception("Unexpected error occurred during login")
+        return jsonify({'message': 'There was an error logging in'}), 500
 
 @api_app.route('/api/users/<userID>', methods=['PUT'])
 @cross_origin(supports_credentials=True)
