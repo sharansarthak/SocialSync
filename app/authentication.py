@@ -1,4 +1,3 @@
-import os
 from flask import Blueprint, jsonify, request, current_app
 import json
 import pyrebase
@@ -8,7 +7,10 @@ from werkzeug.utils import secure_filename
 from functools import wraps
 from app.helpers import is_strong_password, is_valid_email
 from flask_cors import CORS, cross_origin
+import os
 import logging
+from requests.exceptions import HTTPError  # Import HTTPError from requests module
+
 
 authentication = Blueprint('authentication', __name__)
 
@@ -62,19 +64,15 @@ def check_token(f):
 @cross_origin(supports_credentials=True)
 def signup():
     data = request.json
-    name = data.get('name')
     email = data.get('email')
     password = data.get('password')
-    data['events'] = ""
+    data['events_interested'] = ""
+    data['events_created'] = ""
+    data['events_enrolled'] = ""
     print(data)
     if email is None or password is None:
         return {'message': 'Error missing email or password'},400
-    # if not (email and password and name):
-    #     return jsonify({'error': 'Missing fields'}), 400
-    # if not is_valid_email(email):
-    #     return jsonify({'error': 'Invalid email'}), 400
-    # if not is_strong_password(password):
-    #     return jsonify({'error': 'Password is not strong enough'}), 400
+
     try:
         user = pyrebase_auth.create_user_with_email_and_password(
             email=email,
@@ -83,10 +81,11 @@ def signup():
         localID = user.get("localId")
         db.child("users").child(localID).set(data)
         return {'message': f'Successfully created user {user}'},200
-    except:
-        return {'message': 'Error creating user'},400
+    except Exception as e:
+        return {'message': str(e)},400
     
 #Api route to get a new token for a valid user
+
 @authentication.route('/api/login', methods=['POST'])
 @cross_origin(supports_credentials=True)
 def login():
@@ -107,12 +106,18 @@ def login():
         localID = user.get("localId")
         logging.info(f"User authenticated successfully: {email}")
         return jsonify({'token': jwt, 'userID': localID}), 200
-    except auth.AuthError as e:
-        logging.error(f"Authentication failed for user {email}: {e}")
-        return jsonify({'message': 'Invalid credentials'}), 401
+    except HTTPError as httpErr:
+        # Extracting the detailed error message from HTTPError
+        error_message = json.loads(httpErr.args[1])['error']['message']
+        logging.error(f"Authentication failed for user {email}: {error_message}")
+        if error_message == "INVALID_LOGIN_CREDENTIALS":
+            return jsonify({'message': 'Invalid credentials'}), 401
+        else:
+            return jsonify({'message': 'Authentication failed'}), 400
     except Exception as e:
         logging.exception("Unexpected error occurred during login")
         return jsonify({'message': 'There was an error logging in'}), 500
+
 
 @authentication.route('/api/users/<userID>', methods=['PUT'])
 @cross_origin(supports_credentials=True)
