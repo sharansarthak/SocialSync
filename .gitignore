@@ -10,3 +10,7 @@ fbconfig.json
 sgdf.json
 setupenv.sh
 setupEnvVar.py
+authentication.py
+event.py
+models.py
+test.py

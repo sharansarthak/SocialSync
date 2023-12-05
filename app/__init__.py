@@ -11,14 +11,17 @@ import json
 from firebase_admin import credentials, auth
 from flask import Flask, request
 from functools import wraps
+from flask_cors import CORS, cross_origin
 
 
 def create_app():
     app = Flask(__name__)
     CORS(app, support_credentials=True)
-    # Initialize Firebase Admin using environment variables
-    app.register_blueprint(authentication)
-    app.register_blueprint(event)
-    app.register_blueprint(test)
+
+    app.register_blueprint(api_app)
+
+    # app.register_blueprint(authentication)
+    # app.register_blueprint(event)
+    # app.register_blueprint(test)
 
     return app
