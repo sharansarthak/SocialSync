@@ -8,12 +8,37 @@ from functools import wraps
 from app.helpers import is_strong_password, is_valid_email
 from random import randint, randrange
 from collections import OrderedDict
-
+from flask_cors import CORS, cross_origin
+import os
 
 api_app = Blueprint('api_app', __name__)
 
-cred = credentials.Certificate('fbAdminConfig.json')
-pb = pyrebase.initialize_app(json.load(open('fbconfig.json')))
+config = {
+    "apiKey": os.environ.get("API_KEY"),
+    "authDomain": os.environ.get("AUTH_DOMAIN"),
+    "databaseURL": os.environ.get("DATABASE_URL"),
+    "projectId": os.environ.get("PROJECT_ID"),
+    "storageBucket": os.environ.get("STORAGE_BUCKET"),
+    "messagingSenderId": os.environ.get("MESSAGING_SENDER_ID"),
+    "appId": os.environ.get("APP_ID"),
+    "measurementId": os.environ.get("MEASUREMENT_ID")
+}
+
+# Initialize Firebase Admin using environment variables
+cred = credentials.Certificate({
+    "type": "service_account",
+    "project_id": os.environ.get("PROJECT_ID"),
+    "private_key_id": os.environ.get("PRIVATE_KEY_ID"),
+    "private_key": os.environ.get("PRIVATE_KEY").replace('\\n', '\n'),
+    "client_email": os.environ.get("CLIENT_EMAIL"),
+    "client_id": os.environ.get("CLIENT_ID"),
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-krv15%40socialsync-35f38.iam.gserviceaccount.com"
+})
+
+pb = pyrebase.initialize_app(config)
 firebase = firebase_admin.initialize_app(cred)
 pyrebase_auth = pb.auth()
 db = pb.database()
@@ -35,6 +60,7 @@ def check_token(f):
 
 #Api route to sign up a new user, returns user data with token when successful, also adds the user in the database
 @api_app.route('/api/signup', methods=['POST'] )
+@cross_origin(supports_credentials=True)
 def signup():
     data = request.json
     name = data.get('name')
@@ -65,6 +91,7 @@ def signup():
     
 #Api route to get a new token for a valid user
 @api_app.route('/api/login', methods=['GET'])
+@cross_origin(supports_credentials=True)
 def login():
     data = request.json
     email = data.get('email')
@@ -78,6 +105,7 @@ def login():
         return {'message': 'There was an error logging in'},400
 
 @api_app.route('/api/users/<userID>', methods=['PUT'])
+@cross_origin(supports_credentials=True)
 @check_token
 def update_user(userID):
     try:
@@ -99,6 +127,7 @@ def delete_user(userID):
 
 
 @api_app.route('/api/users/picture/<userID>', methods=['POST'])
+@cross_origin(supports_credentials=True)
 @check_token
 def upload_picture(userID):
     try:
@@ -144,6 +173,7 @@ def upload_picture(userID):
         return jsonify({'error': str(e)}), 500
     
 @api_app.route('/api/users/picture/<userID>', methods=['GET'])
+@cross_origin(supports_credentials=True)
 @check_token
 def get_picture(userID):
     try:
@@ -159,6 +189,7 @@ def get_picture(userID):
 
 
 api_app.route('/api/events/all', methods=['GET'])
+@cross_origin(supports_credentials=True)
 @check_token
 def get_all_events():
     try:
@@ -168,6 +199,7 @@ def get_all_events():
         return jsonify({'error': str(e)}), 500
 
 api_app.route('/api/events/<int:event_id>', methods=['GET'])
+@cross_origin(supports_credentials=True)
 @check_token
 def get_event(event_id):
     try:
@@ -189,6 +221,8 @@ def get_event(event_id):
 #         return jsonify({'error': str(e)}), 500
 
 api_app.route('/api/events/user/all/<userID>', methods=['GET'])
+@cross_origin(supports_credentials=True)
+@check_token
 def get_user_events(userID):
     try:
         # Implement logic to retrieve a specific event
@@ -228,6 +262,8 @@ def get_user_events(userID):
         return jsonify({'error': str(e)}), 500
 
 api_app.route('/api/events/user/interested/<userID>', methods=['GET'])
+@cross_origin(supports_credentials=True)
+@check_token
 def get_interested_events(userID):
     try:
         # Implement logic to retrieve a specific event
@@ -245,6 +281,8 @@ def get_interested_events(userID):
         return jsonify({'error': str(e)}), 500
 
 @api_app.route('/api/events/createEvent/<userID>', methods=['POST'])
+@check_token
+@cross_origin(supports_credentials=True)
 @check_token
 def create_event(userID):
     try:
@@ -304,6 +342,8 @@ def create_event(userID):
     
 
 @api_app.route('/api/events/<int:event_id>', methods=['PUT'])
+@cross_origin(supports_credentials=True)
+@check_token
 def update_event(event_id):
     try:
         data = request.json
@@ -317,6 +357,8 @@ def update_event(event_id):
         return jsonify({'error': str(e)}), 500
 
 @api_app.route('/api/events/<int:event_id>', methods=['DELETE'])
+@cross_origin(supports_credentials=True)
+@check_token
 def delete_event(event_id):
     try:
         data = request.json
