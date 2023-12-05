@@ -8,3 +8,7 @@ __pycache__/config.cpython-39.pyc
 fbAdminConfig.json
 fbconfig.json
 sgdf.json
+authentication.py
+event.py
+models.py
+test.py

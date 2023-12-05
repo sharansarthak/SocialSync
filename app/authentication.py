@@ -1,3 +1,4 @@
+
 from flask import Blueprint, jsonify, request, current_app
 import json
 import pyrebase
@@ -6,6 +7,7 @@ from firebase_admin import credentials, auth
 from werkzeug.utils import secure_filename
 from functools import wraps
 from app.helpers import is_strong_password, is_valid_email
+
 
 authentication = Blueprint('authentication', __name__)
 
@@ -34,19 +36,15 @@ def check_token(f):
 @authentication.route('/api/signup', methods=['POST'] )
 def signup():
     data = request.json
-    name = data.get('name')
     email = data.get('email')
     password = data.get('password')
-    data['events'] = ""
+    data['events_interested'] = ""
+    data['events_created'] = ""
+    data['events_enrolled'] = ""
     print(data)
     if email is None or password is None:
         return {'message': 'Error missing email or password'},400
-    # if not (email and password and name):
-    #     return jsonify({'error': 'Missing fields'}), 400
-    # if not is_valid_email(email):
-    #     return jsonify({'error': 'Invalid email'}), 400
-    # if not is_strong_password(password):
-    #     return jsonify({'error': 'Password is not strong enough'}), 400
+
     try:
         user = pyrebase_auth.create_user_with_email_and_password(
             email=email,
@@ -55,8 +53,8 @@ def signup():
         localID = user.get("localId")
         db.child("users").child(localID).set(data)
         return {'message': f'Successfully created user {user}'},200
-    except:
-        return {'message': 'Error creating user'},400
+    except Exception as e:
+        return {'message': str(e)},400
     
 #Api route to get a new token for a valid user
 @authentication.route('/api/login', methods=['GET'])
