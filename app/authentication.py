@@ -1,4 +1,3 @@
-
 from flask import Blueprint, jsonify, request, current_app
 import json
 import pyrebase
@@ -9,6 +8,9 @@ from functools import wraps
 from app.helpers import is_strong_password, is_valid_email
 from flask_cors import CORS, cross_origin
 import os
+import logging
+from requests.exceptions import HTTPError  # Import HTTPError from requests module
+
 
 authentication = Blueprint('authentication', __name__)
 
@@ -83,19 +85,39 @@ def signup():
         return {'message': str(e)},400
     
 #Api route to get a new token for a valid user
-@authentication.route('/api/login', methods=['GET'])
+
+@authentication.route('/api/login', methods=['POST'])
 @cross_origin(supports_credentials=True)
 def login():
+    logging.debug("Login request received")
+
     data = request.json
     email = data.get('email')
     password = data.get('password')
+
+    if not email or not password:
+        logging.warning("Missing email or password in request")
+        return jsonify({'message': 'Email and password are required'}), 400
+
     try:
+        logging.debug(f"Attempting to authenticate user: {email}")
         user = pb.auth().sign_in_with_email_and_password(email, password)
         jwt = user['idToken']
         localID = user.get("localId")
-        return {'token': jwt, 'userID': localID}, 200
-    except:
-        return {'message': 'There was an error logging in'},400
+        logging.info(f"User authenticated successfully: {email}")
+        return jsonify({'token': jwt, 'userID': localID}), 200
+    except HTTPError as httpErr:
+        # Extracting the detailed error message from HTTPError
+        error_message = json.loads(httpErr.args[1])['error']['message']
+        logging.error(f"Authentication failed for user {email}: {error_message}")
+        if error_message == "INVALID_LOGIN_CREDENTIALS":
+            return jsonify({'message': 'Invalid credentials'}), 401
+        else:
+            return jsonify({'message': 'Authentication failed'}), 400
+    except Exception as e:
+        logging.exception("Unexpected error occurred during login")
+        return jsonify({'message': 'There was an error logging in'}), 500
+
 
 @authentication.route('/api/users/<userID>', methods=['PUT'])
 @cross_origin(supports_credentials=True)
