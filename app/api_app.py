@@ -380,60 +380,45 @@ def get_interested_events(userID):
 @api_app.route('/api/events/createEvent/<userID>', methods=['POST'])
 @check_token
 @cross_origin(supports_credentials=True)
-@check_token
 def create_event(userID):
     try:
         data = request.json
-        event_name = data.get('event_name')
-        type = data.get('event_type')
-        date = data.get('event_date')
-        time = data.get('event_time')
-        description = data.get('event_details')
-        location = data.get('event_location')
-        attendees = userID
-        price = data.get('price')
-        numOfParticipants = data.get('numOfParticipants')
-        target_audience = data.get('event_target_audience')
-        images = ""
+        required_fields = ['event_name', 'event_type', 'event_date', 'event_time', 'event_details', 'event_location', 'price', 'numOfParticipants', 'event_target_audience']
+        if not all(data.get(field) for field in required_fields):
+            return jsonify({'message': 'Error missing fields'}), 400
 
-        newEventData = json.dumps({
-          "event_name" : data.get('event_name'),
-          "type" : data.get('event_type'),
-          "date" : data.get('event_date'),
-          "time" : data.get('event_time'),
-          "description" : data.get('event_details'),
-          "location" : data.get('event_location'),
-          "attendees" : userID,
-          "price" : data.get('price'),
-          "numOfParticipants" : data.get('numOfParticipants'),
-          "target_audience" : data.get('event_target_audience'),
-          "images" : ""
-        })
-
-        if (event_name or type or date or time or description or location or attendees or target_audience or price or numOfParticipants) is (None or ""):
-            return {'message': 'Error missing fields'},400
-
-        print(newEventData)
-
+        # Generate a unique ID for the new event
         uniqueID = randint(10000, 99999)
-        eventData = db.child("event").child(uniqueID).get()
-        print(eventData.val())
-        while eventData.val() is not None:
-            eventData = db.child("event").child(uniqueID).get()
+        while db.child("events").child(uniqueID).get().val() is not None:
             uniqueID = randint(10000, 99999)
-        db.child("events").child(uniqueID).set(data)
-        print(userID)
-        userData =db.child("users").child(userID).get().val()
-        print(userData)
-        userData['events_created'] = userData['events_created'] + str(uniqueID) + ","
-        userData['events_interested'] = userData['events_interested'] + str(uniqueID) + ","
-        userData['events_enrolled'] = userData['events_enrolled'] + str(uniqueID) + ","
-        userDataJson = json.loads(json.dumps(userData))
-        print(userData)
-        print(userDataJson)
-        db.child('users').child(userID).update(userDataJson)
 
-        return jsonify({'message': 'Event created successfully'})
+        # Prepare the new event data
+        new_event_data = {
+            "event_name": data.get('event_name'),
+            "type": data.get('event_type'),
+            "date": data.get('event_date'),
+            "time": data.get('event_time'),
+            "description": data.get('event_details'),
+            "location": data.get('event_location'),
+            "attendees": [userID],  # Assuming attendees is a list
+            "price": data.get('price'),
+            "numOfParticipants": data.get('numOfParticipants'),
+            "target_audience": data.get('event_target_audience'),
+            "images": ""  # Assuming this will be handled later
+        }
+
+        # Save the new event
+        db.child("events").child(uniqueID).set(new_event_data)
+
+        # Update user data with the new event
+        user_data = db.child("users").child(userID).get().val() or {}
+        for key in ['events_created', 'events_interested', 'events_enrolled']:
+            user_data.setdefault(key, '')
+            user_data[key] += f"{uniqueID},"
+
+        db.child('users').child(userID).update(user_data)
+
+        return jsonify({'message': 'Event created successfully', 'eventID': uniqueID}), 201
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
