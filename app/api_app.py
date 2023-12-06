@@ -202,9 +202,16 @@ def update_user(userID):
 def get_user(userID):
     try:
         userData = db.child('users').child(userID).get().val()
-        return jsonify(userData)
+        if userData:
+           userData.pop('password', None)
+           return jsonify(userData), 200
+        else:
+            return jsonify({'message': 'User not found'}), 404
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        # Log the exception for debugging purposes
+        logger.error(f'Error in get_user: {str(e)}')
+        return jsonify({'error': 'An internal error occurred'}), 500
+
 
 @api_app.route('/api/users/<userID>', methods=['DELETE'])
 @check_token
