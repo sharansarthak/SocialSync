@@ -292,7 +292,7 @@ def upload_picture(userID):
         pb_storage.child(path).put(file)
 
         # Make the blob publicly accessible
-        url = pb_storage.child(path).get_url(request.headers.get('Authorization'))
+        url = pb_storage.child(path).get_url(None)
         # Update the user's document in Firestore with the picture URL
         user_doc_dict =  user_doc.val()
         user_doc_dict['picture_url'] = url
