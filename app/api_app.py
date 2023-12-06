@@ -202,7 +202,7 @@ def update_user(userID):
 
 
 #Api to add user Rating
-@api_app.route('/api/users/rating', methods=['POST'])
+@api_app.route('/api/users/add/rating/', methods=['POST'])
 @cross_origin(supports_credentials=True)
 @check_token
 def add_user_rating():
@@ -210,20 +210,29 @@ def add_user_rating():
         data = request.json
         userID = data.get("userID")
         rating = data.get("rating")
-        print(rating)
         current_rating = db.child('users').child(userID).child('rating').get().val()
-        print(current_rating)        
         if current_rating is None:
             return jsonify({"message": 'Error finding user'}), 404
         current_rating.append(rating)
-        print(current_rating)
-        print(db.child('users').child(userID).child('rating').update({'rating' : current_rating}))
-        print(db.child('users').child(userID).child('rating').get().val())
+
         return jsonify({'Message' : 'Rating added'}), 200
     except Exception as e:
         print(e)
         return jsonify({'Message' : 'Failed to add rating'}), 500
 
+#Api to add user Rating
+@api_app.route('/api/users/rating/<userID>', methods=['GET'])
+@cross_origin(supports_credentials=True)
+@check_token
+def get_user_rating(userID):
+    try:
+        rating = db.child('users').child(userID).child('rating').get().val()     
+        if rating is None:
+            return jsonify({"message": 'Error finding user'}), 404
+        return jsonify({'rating' : rating}), 200
+    except Exception as e:
+        print(e)
+        return jsonify({'Message' : 'Failed to get rating'}), 500
 
 #Api to Get the user data, return a success message
 @api_app.route('/api/users/<userID>', methods=['GET'])
