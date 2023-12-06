@@ -290,18 +290,7 @@ def upload_picture(userID):
         # Define the path where the file will be uploaded
         path = "images/" + userID
         pb_storage.child(path).put(file)
-
-        # Make the blob publicly accessible
-        print(request.headers.get('Authorization'))
-        return jsonify({'headers': request.headers.get('Authorization')})
-        url = pb_storage.child(path).get_url(None)
-        # Update the user's document in Firestore with the picture URL
-        user_doc_dict =  user_doc.val()
-        user_doc_dict['picture_url'] = url
-        db.child('users').child(userID).remove()
-        db.child('users').child(userID).set(user_doc_dict)
-
-        return jsonify({'message': 'Picture uploaded successfully', 'url': url})
+        return jsonify({'message': 'Picture uploaded successfully'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
@@ -314,10 +303,11 @@ def get_picture(userID):
         user_doc = db.child('users').child(userID).get()
         if user_doc.val() is None:
             return jsonify({'error': 'User not found'}), 404
-
-        user_data = user_doc.val()
-        picture_url = user_data.get('picture_url')
-        return jsonify({'message': 'Picture found successfully', 'url': picture_url})
+        url = pb_storage.child("images/"+userID).get_url(None)
+        # Update the user's document in Firestore with the picture URL
+        if url is None:
+            return jsonify({'message': 'Picture not found'})
+        return jsonify({'message': 'Picture found successfully', 'url': url})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
