@@ -308,10 +308,11 @@ def get_picture(userID):
         user_doc = db.child('users').child(userID).get()
         if user_doc.val() is None:
             return jsonify({'error': 'User not found'}), 404
-
-        user_data = user_doc.val()
-        picture_url = user_data.get('picture_url')
-        return jsonify({'message': 'Picture found successfully', 'url': picture_url})
+        url = pb_storage.child("images/"+userID).get_url(None)
+        # Update the user's document in Firestore with the picture URL
+        if url is None:
+            return jsonify({'message': 'Picture not found'})
+        return jsonify({'message': 'Picture found successfully', 'url': url})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
