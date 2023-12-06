@@ -54,10 +54,10 @@ pb_storage = pb.storage()
 def check_token(f):
     @wraps(f)
     def wrap(*args,**kwargs):
-        if not request.headers.get('authorization'):
+        if not request.headers.get('Authorization'):
             return {'message': 'No token provided'},400
         try:
-            user = auth.verify_id_token(request.headers['authorization'])
+            user = auth.verify_id_token(request.headers['Authorization'])
         except Exception as e:
             return {'message':'Invalid token provided.'},400
         return f(*args, **kwargs)
