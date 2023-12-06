@@ -278,7 +278,7 @@ def get_picture(userID):
         return jsonify({'error': str(e)}), 500
 
 
-api_app.route('/api/events/all', methods=['GET'])
+@api_app.route('/api/events/all', methods=['GET'])
 @cross_origin(supports_credentials=True)
 @check_token
 def get_all_events():
@@ -288,7 +288,7 @@ def get_all_events():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-api_app.route('/api/events/<int:event_id>', methods=['GET'])
+@api_app.route('/api/events/<int:event_id>', methods=['GET'])
 @cross_origin(supports_credentials=True)
 @check_token
 def get_event(event_id):
@@ -310,7 +310,7 @@ def get_event(event_id):
 #     except Exception as e:
 #         return jsonify({'error': str(e)}), 500
 
-api_app.route('/api/events/user/all/<userID>', methods=['GET'])
+@api_app.route('/api/events/user/all/<userID>', methods=['GET'])
 @cross_origin(supports_credentials=True)
 @check_token
 def get_user_events(userID):
@@ -351,7 +351,7 @@ def get_user_events(userID):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-api_app.route('/api/events/user/interested/<userID>', methods=['GET'])
+@api_app.route('/api/events/user/interested/<userID>', methods=['GET'])
 @cross_origin(supports_credentials=True)
 @check_token
 def get_interested_events(userID):
