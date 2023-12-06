@@ -2,6 +2,7 @@ import datetime
 from http.client import BAD_REQUEST
 import logging
 import traceback
+from uuid import uuid4
 from venv import logger
 from flask import Blueprint, jsonify, request, current_app
 import json
@@ -81,31 +82,27 @@ def signup():
         age = data.get('age')
         description = data.get('description')
 
-        # Validating required fields
+        # Data Validation
         if not all([email, password, name, age, description]):
-            return jsonify({'message': 'Error: Missing email, password, name, age, description'}), 400
+            return jsonify({'message': 'Error: Missing email, password, name, age, or description'}), 400
 
-        # Creating a new user
+        # Email format, password strength, and age validation logic here
+
         user = pyrebase_auth.create_user_with_email_and_password(email, password)
         localID = user.get("localId")
 
-        # Setting additional default values
         user_data = {
             'name': name,
             'email': email,
             'age': age,
             'description': description,
-            'events_interested': ['none'],
-            'events_created': ['none'],
-            'events_enrolled': ['none'],
-            'description': "",
-            'rating': [5]
+            'events_interested': [],
+            'events_created': [],
+            'events_enrolled': [],
+            'rating': [5] 
         }
 
-        # Save the user data in the database
         db.child("users").child(localID).set(user_data)
-        # Create user in ChatEngine
-        # create_chat_engine_user(name, email, localID)
         return jsonify({'message': 'User created successfully', 'user': user}), 200
 
     except HTTPError as http_err:
@@ -370,44 +367,38 @@ def get_event_with_IDs():
 @check_token
 def get_user_events(userID):
     try:
-        # Implement logic to retrieve a specific event
         userData = db.child("users").child(userID).get().val()
-        if userData is not None:
-            userData['events_interested'].remove("none")
-            userData['events_enrolled'].remove("none")
-            userData['events_created'].remove("none")
-            events_interested_ids = userData['events_interested']
-            events_enrolled_ids = userData['events_enrolled']
-            events_created_ids = userData['events_created']
-            all_events_id_with_duplicates = events_interested_ids + events_enrolled_ids + events_created_ids
-            all_events_id = []
-            for event in all_events_id_with_duplicates:
-                if event not in all_events_id:
-                    all_events_id.append(event)
-            interested_events = []
-            enrolled_events = []
-            created_events = []
-            all_events = []
-            for id in events_interested_ids:
-                event = db.child("events").child(id).get().val()
-                interested_events.append(event)
-            for id in events_enrolled_ids:
-                event = db.child("events").child(id).get().val()
-                enrolled_events.append(event)
-            for id in events_created_ids:
-                event = db.child("events").child(id).get().val()
-                created_events.append(event)
-            for id in all_events_id:
-                event = db.child("events").child(id).get().val()
-                all_events.append(event)
-            all_categories = {
-                'interested_events' : interested_events, 'enrolled_events' : enrolled_events, 'created_events' : created_events, 'all_events' : all_events
-            }
-            return jsonify(all_categories)
-        else:
-            return jsonify({'message': 'Event not found'}), 404
+        if userData is None:
+            return jsonify({'message': 'User not found'}), 404
+
+        def split_event_ids(event_ids_str):
+            # Split the string into a list, remove 'none', and filter out empty strings
+            return [eid for eid in event_ids_str.split(',') if eid and eid != 'none']
+
+        events_interested_ids = split_event_ids(userData.get('events_interested', ''))
+        events_enrolled_ids = split_event_ids(userData.get('events_enrolled', ''))
+        events_created_ids = split_event_ids(userData.get('events_created', ''))
+
+        def fetch_events(event_ids):
+            return [db.child("events").child(eid).get().val() for eid in event_ids]
+
+        all_events_id = set(events_interested_ids + events_enrolled_ids + events_created_ids)
+        interested_events = fetch_events(events_interested_ids)
+        enrolled_events = fetch_events(events_enrolled_ids)
+        created_events = fetch_events(events_created_ids)
+        all_events = fetch_events(all_events_id)
+
+        all_categories = {
+            'interested_events': interested_events, 
+            'enrolled_events': enrolled_events, 
+            'created_events': created_events, 
+            'all_events': all_events
+        }
+        return jsonify(all_categories)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
 
 #Api to get all the events the user is interested in
 @api_app.route('/api/events/user/interested/<userID>', methods=['GET'])
@@ -440,10 +431,8 @@ def create_event(userID):
         if not all(data.get(field) for field in required_fields):
             return jsonify({'message': 'Error missing fields'}), 400
 
-        # Generate a unique ID for the new event
-        uniqueID = randint(10000, 99999)
-        while db.child("events").child(uniqueID).get().val() is not None:
-            uniqueID = randint(10000, 99999)
+        # Generate a unique ID for the new event using UUID
+        uniqueID = str(uuid4())
 
         # Prepare the new event data
         new_event_data = {
@@ -465,11 +454,7 @@ def create_event(userID):
 
         # Update user data with the new event
         user_data = db.child("users").child(userID).get().val() or {}
-        user_data['events_created'].append(uniqueID)
-        user_data['events_interested'].append(uniqueID)
-        user_data['events_enrolled'].append(uniqueID)
-
-
+        user_data.setdefault('events_created', []).append(uniqueID)
         db.child('users').child(userID).update(user_data)
 
         return jsonify({'message': 'Event created successfully', 'eventID': uniqueID}), 201
