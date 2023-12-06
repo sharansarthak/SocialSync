@@ -45,12 +45,16 @@ cred = credentials.Certificate({
     "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-krv15%40socialsync-35f38.iam.gserviceaccount.com"
 })
 
+#Initialize apps for firebase and pyrebase
+#Initialize authentication, database and storage 
 pb = pyrebase.initialize_app(config)
 firebase = firebase_admin.initialize_app(cred)
 pyrebase_auth = pb.auth()
 db = pb.database()
 pb_storage = pb.storage()
 
+
+#Check token function to validate user authenticity
 def check_token(f):
     @wraps(f)
     def wrap(*args,**kwargs):
@@ -127,7 +131,8 @@ def signup():
     except Exception as e:
         # Handle other exceptions
         return jsonify({'message': 'An error occurred during signup'}), 500
-    
+
+
 def create_chat_engine_user(username, email, local_id):
     chat_engine_private_key = os.environ.get("CHAT_ENGINE_PRIVATE_KEY") 
     chat_user_data = {
@@ -149,7 +154,7 @@ def create_chat_engine_user(username, email, local_id):
     if response.status_code != 201:
         print("Failed to create user in Chat Engine:", response.text)
 
-#Api route to get a new token for a valid user
+#Api route to get a new token for a valid user, returns the token and userID
 @api_app.route('/api/login', methods=['POST'])
 @cross_origin(supports_credentials=True)
 def login():
@@ -182,6 +187,7 @@ def login():
         logging.exception("Unexpected error occurred during login")
         return jsonify({'message': 'There was an error logging in'}), 500
 
+#Api to update the user data, return a success message
 @api_app.route('/api/users/<userID>', methods=['PUT'])
 @cross_origin(supports_credentials=True)
 @check_token
@@ -193,6 +199,7 @@ def update_user(userID):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+#Api to Get the user data, return a success message
 @api_app.route('/api/users/<userID>', methods=['GET'])
 @cross_origin(supports_credentials=True)
 @check_token
@@ -209,7 +216,7 @@ def get_user(userID):
         logger.error(f'Error in get_user: {str(e)}')
         return jsonify({'error': 'An internal error occurred'}), 500
 
-
+#Api to delete user account
 @api_app.route('/api/users/<userID>', methods=['DELETE'])
 @check_token
 def delete_user(userID):
@@ -219,7 +226,7 @@ def delete_user(userID):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
+#Api to upload a profile picture for the user, updates picture if already exists
 @api_app.route('/api/users/picture/<userID>', methods=['POST'])
 @cross_origin(supports_credentials=True)
 @check_token
@@ -261,6 +268,7 @@ def upload_picture(userID):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
+#Api to get the url for the picture from the user data
 @api_app.route('/api/users/picture/<userID>', methods=['GET'])
 @cross_origin(supports_credentials=True)
 @check_token
@@ -277,6 +285,7 @@ def get_picture(userID):
         return jsonify({'error': str(e)}), 500
 
 
+#Api to get all the events that exist
 @api_app.route('/api/events/all', methods=['GET'])
 @cross_origin(supports_credentials=True)
 @check_token
@@ -287,6 +296,7 @@ def get_all_events():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+#Api to get an event by event ID
 @api_app.route('/api/events/<int:event_id>', methods=['GET'])
 @cross_origin(supports_credentials=True)
 @check_token
@@ -301,14 +311,7 @@ def get_event(event_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# api_app.route('/api/events/search/<search_term>', methods=['GET'])
-# def search_events(search_term):
-#     try:
-#         # Implement logic to retrieve all events based on search
-#         return jsonify(events)
-#     except Exception as e:
-#         return jsonify({'error': str(e)}), 500
-
+#Api to get all the user's events from all different categories
 @api_app.route('/api/events/user/all/<userID>', methods=['GET'])
 @cross_origin(supports_credentials=True)
 @check_token
@@ -350,6 +353,7 @@ def get_user_events(userID):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+#Api to get all the events the user is interested in
 @api_app.route('/api/events/user/interested/<userID>', methods=['GET'])
 @cross_origin(supports_credentials=True)
 @check_token
@@ -369,6 +373,7 @@ def get_interested_events(userID):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+#Api to create an event
 @api_app.route('/api/events/createEvent/<userID>', methods=['POST'])
 @check_token
 @cross_origin(supports_credentials=True)
@@ -414,7 +419,7 @@ def create_event(userID):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     
-
+#Api to update the event data
 @api_app.route('/api/events/<int:event_id>', methods=['PUT'])
 @cross_origin(supports_credentials=True)
 @check_token
@@ -443,6 +448,7 @@ def update_event(event_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+#Api to delete an event
 @api_app.route('/api/events/<int:event_id>', methods=['DELETE'])
 @cross_origin(supports_credentials=True)
 @check_token
@@ -459,7 +465,7 @@ def delete_event(event_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
+#Api to upload a picture for the event
 @api_app.route('/api/picture/event/<eventID>', methods=['POST'])
 @cross_origin(supports_credentials=True)
 @check_token
@@ -500,7 +506,8 @@ def upload_picture_event(eventID):
         return jsonify({'message': 'Picture uploaded successfully', 'url': url})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-    
+
+#Api route to get event pictures
 @api_app.route('/api/events/picture/<eventID>', methods=['GET'])
 @cross_origin(supports_credentials=True)
 @check_token
@@ -516,6 +523,7 @@ def get_picture_event(eventID):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+#Api route to get search results
 @cross_origin(supports_credentials=True)
 @check_token
 @api_app.route('/api/search', methods=['GET'])
