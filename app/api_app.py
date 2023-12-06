@@ -260,18 +260,17 @@ def delete_user(userID):
         return jsonify({'message': 'User deleted successfully'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-#Api to upload a profile picture for the user, updates picture if already exists
 @api_app.route('/api/users/picture/<userID>', methods=['POST'])
 @cross_origin(supports_credentials=True)
 @check_token
 def upload_picture(userID):
     try:
-        # Check if 'picture' is present in the request files
+        # Check if 'image' is present in the request files
         if 'image' not in request.files:
             return jsonify({'error': 'No file part'}), 400
 
         file = request.files['image']
+
         # Check if the filename is not empty
         if file.filename == '':
             return jsonify({'error': 'No selected file'}), 400
@@ -285,20 +284,16 @@ def upload_picture(userID):
         if user_doc.val() is None:
             return jsonify({'error': 'User not found'}), 404
 
+        # Secure the filename and construct the path for storage
         filename = secure_filename(file.filename)
-
-        # Define the path where the file will be uploaded
-        path = "images/" + userID
+        path = os.path.join("images", userID, filename)
         pb_storage.child(path).put(file)
 
-        # Make the blob publicly accessible
-        print(request.headers.get('Authorization'))
+        # Retrieve the public URL of the uploaded file
         url = pb_storage.child(path).get_url()
+
         # Update the user's document in Firestore with the picture URL
-        user_doc_dict =  user_doc.val()
-        user_doc_dict['picture_url'] = url
-        db.child('users').child(userID).remove()
-        db.child('users').child(userID).set(user_doc_dict)
+        db.child('users').child(userID).update({'picture_url': url})
 
         return jsonify({'message': 'Picture uploaded successfully', 'url': url})
     except Exception as e:
