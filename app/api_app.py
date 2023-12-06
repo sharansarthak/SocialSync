@@ -79,10 +79,11 @@ def signup():
         email = data.get('email')
         password = data.get('password')
         age = data.get('age')
+        description = data.get('description')
 
         # Validating required fields
-        if not all([email, password, name, age]):
-            return jsonify({'message': 'Error: Missing email, password, name, or age'}), 400
+        if not all([email, password, name, age, description]):
+            return jsonify({'message': 'Error: Missing email, password, name, age, description'}), 400
 
         # Creating a new user
         user = pyrebase_auth.create_user_with_email_and_password(email, password)
@@ -93,22 +94,22 @@ def signup():
             'name': name,
             'email': email,
             'age': age,
-            'events_interested': "",
-            'events_created': "",
-            'events_enrolled': "",
+            'description': description,
+            'events_interested': ['none'],
+            'events_created': ['none'],
+            'events_enrolled': ['none'],
             'description': "",
-            'rating': "5"
+            'rating': [5]
         }
 
         # Save the user data in the database
         db.child("users").child(localID).set(user_data)
         # Create user in ChatEngine
-        create_chat_engine_user(name, email, localID)
+        # create_chat_engine_user(name, email, localID)
         return jsonify({'message': 'User created successfully', 'user': user}), 200
 
     except HTTPError as http_err:
         # Log the HTTPError object for debugging
-
         try:
             # Parsing the string representation of HTTPError to JSON
             error_message_str = str(http_err)
@@ -130,7 +131,7 @@ def signup():
 
     except Exception as e:
         # Handle other exceptions
-        return jsonify({'message': 'An error occurred during signup'}), 500
+        return jsonify({'message': "Failed to create user"}), 500
 
 
 def create_chat_engine_user(username, email, local_id):
@@ -311,6 +312,27 @@ def get_event(event_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+
+#Api to get an event by event ID List
+@api_app.route('/api/events/eventIDs', methods=['GET'])
+@cross_origin(supports_credentials=True)
+@check_token
+def get_event_with_IDs():
+    try:
+        events = {}
+        eventIDList = request.json.get('eventIDList')
+        for eventID in eventIDList:
+        # Implement logic to retrieve a specific event
+            
+            event = db.child("events").child(eventID).get().val()
+            if event is not None:
+                events[eventID] = (event)
+            else:
+                continue
+        return jsonify({'events': events})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 #Api to get all the user's events from all different categories
 @api_app.route('/api/events/user/all/<userID>', methods=['GET'])
 @cross_origin(supports_credentials=True)
@@ -320,9 +342,12 @@ def get_user_events(userID):
         # Implement logic to retrieve a specific event
         userData = db.child("users").child(userID).get().val()
         if userData is not None:
-            events_interested_ids = userData['events_interested'].strip(",").split(",")
-            events_enrolled_ids = userData['events_enrolled'].strip(",").split(",")
-            events_created_ids = userData['events_created'].strip(",").split(",")
+            userData['events_interested'].remove("none")
+            userData['events_enrolled'].remove("none")
+            userData['events_created'].remove("none")
+            events_interested_ids = userData['events_interested']
+            events_enrolled_ids = userData['events_enrolled']
+            events_created_ids = userData['events_created']
             all_events_id_with_duplicates = events_interested_ids + events_enrolled_ids + events_created_ids
             all_events_id = []
             for event in all_events_id_with_duplicates:
@@ -401,7 +426,7 @@ def create_event(userID):
             "price": data.get('price'),
             "numOfParticipants": data.get('numOfParticipants'),
             "target_audience": data.get('event_target_audience'),
-            "images": ""  # Assuming this will be handled later
+            "images": []  # Assuming this will be handled later
         }
 
         # Save the new event
@@ -409,9 +434,10 @@ def create_event(userID):
 
         # Update user data with the new event
         user_data = db.child("users").child(userID).get().val() or {}
-        for key in ['events_created', 'events_interested', 'events_enrolled']:
-            user_data.setdefault(key, '')
-            user_data[key] += f"{uniqueID},"
+        user_data['events_created'].append(uniqueID)
+        user_data['events_interested'].append(uniqueID)
+        user_data['events_enrolled'].append(uniqueID)
+
 
         db.child('users').child(userID).update(user_data)
 
@@ -482,26 +508,26 @@ def upload_picture_event(eventID):
 
         # Validate that the user ID is provided
         if not eventID:
-            return jsonify({'error': 'User ID is missing'}), 400
+            return jsonify({'error': 'Event ID is missing'}), 400
 
         # Check if the user exists in Firestore
         event_doc = db.child('users').child(eventID).get()
         if event_doc.val() is None:
-            return jsonify({'error': 'User not found'}), 404
+            return jsonify({'error': 'Event not found'}), 404
 
         filename = secure_filename(file.filename)
 
         # Define the path where the file will be uploaded
-        path = "images/" + eventID
+        path = "images/" + eventID + "/" + filename
         pb_storage.child(path).put(file)
 
         # Make the blob publicly accessible
-        url = pb_storage.child(path).get_url()
+        url = pb_storage.child(path).get_url(request.headers.get('Authorization'))
         # Update the user's document in Firestore with the picture URL
         event_doc_dict =  event_doc.val()
-        event_doc_dict['picture_url'] = event_doc_dict['picture_url'] + url + ","
-        db.child('users').child(eventID).remove()
-        db.child('users').child(eventID).set(event_doc_dict)
+        event_doc_dict['images'].append(url)
+        db.child('events').child(eventID).remove()
+        db.child('events').child(eventID).set(event_doc_dict)
 
         return jsonify({'message': 'Picture uploaded successfully', 'url': url})
     except Exception as e:
@@ -513,12 +539,12 @@ def upload_picture_event(eventID):
 @check_token
 def get_picture_event(eventID):
     try:
-        event_doc = db.child('users').child(eventID).get()
+        event_doc = db.child('events').child(eventID).get()
         if event_doc.val() is None:
-            return jsonify({'error': 'User not found'}), 404
+            return jsonify({'error': 'Event not found'}), 404
 
         event_data = event_doc.val()
-        picture_url = event_data.get('picture_url').split(",")
+        picture_url = event_data.get('images')
         return jsonify({'message': 'Picture found successfully', 'url': picture_url})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
