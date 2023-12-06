@@ -104,7 +104,6 @@ def signup():
 
     except HTTPError as http_err:
         # Log the HTTPError object for debugging
-        print(f"HTTPError: {http_err}")
 
         try:
             # Parsing the string representation of HTTPError to JSON
@@ -127,7 +126,6 @@ def signup():
 
     except Exception as e:
         # Handle other exceptions
-        print(f"General Exception: {str(e)}")
         return jsonify({'message': 'An error occurred during signup'}), 500
     
 def create_chat_engine_user(username, email, local_id):
@@ -190,7 +188,6 @@ def login():
 def update_user(userID):
     try:
         data = request.json
-        print(data)
         db.child('users').child(userID).update(data)
         return jsonify({'message': 'User updated successfully'})
     except Exception as e:
@@ -243,7 +240,6 @@ def upload_picture(userID):
 
         # Check if the user exists in Firestore
         user_doc = db.child('users').child(userID).get()
-        print(user_doc.val(), type(user_doc))
         if user_doc.val() is None:
             return jsonify({'error': 'User not found'}), 404
 
@@ -251,17 +247,13 @@ def upload_picture(userID):
 
         # Define the path where the file will be uploaded
         path = "images/" + userID
-        print(path)
         pb_storage.child(path).put(file)
-        print(filename)
 
         # Make the blob publicly accessible
-        url = pb_storage.child(path).get_url()
-        print(url)
+        url = pb_storage.child(path).get_url(request.headers.get('Authorization'))
         # Update the user's document in Firestore with the picture URL
         user_doc_dict =  user_doc.val()
         user_doc_dict['picture_url'] = url
-        print(str((json.dumps(user_doc_dict))))
         db.child('users').child(userID).remove()
         db.child('users').child(userID).set(user_doc_dict)
 
@@ -488,7 +480,6 @@ def upload_picture_event(eventID):
 
         # Check if the user exists in Firestore
         event_doc = db.child('users').child(eventID).get()
-        print(event_doc.val(), type(event_doc))
         if event_doc.val() is None:
             return jsonify({'error': 'User not found'}), 404
 
@@ -496,17 +487,13 @@ def upload_picture_event(eventID):
 
         # Define the path where the file will be uploaded
         path = "images/" + eventID
-        print(path)
         pb_storage.child(path).put(file)
-        print(filename)
 
         # Make the blob publicly accessible
         url = pb_storage.child(path).get_url()
-        print(url)
         # Update the user's document in Firestore with the picture URL
         event_doc_dict =  event_doc.val()
         event_doc_dict['picture_url'] = event_doc_dict['picture_url'] + url + ","
-        print(str((json.dumps(event_doc_dict))))
         db.child('users').child(eventID).remove()
         db.child('users').child(eventID).set(event_doc_dict)
 
