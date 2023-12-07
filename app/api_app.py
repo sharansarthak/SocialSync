@@ -701,42 +701,73 @@ def get_picture_event(eventID):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-#Api route to get search results
+from datetime import datetime
+from flask import jsonify, request
+
+
 @cross_origin(supports_credentials=True)
 @check_token
 @api_app.route('/api/search', methods=['GET'])
 def search():
     try:
         query = request.args.get('query', '').lower()
+        current_date = datetime.now()
 
         # Fetch data from Firebase
         all_data = db.child("events").get().val()
 
-        # Convert the values of the OrderedDict into a list of dictionaries
+        # Check if data is None
+        if not all_data:
+            return jsonify({'message': 'No events found'}), 404
+
+        # Convert the values into a list of dictionaries
         event_list = list(all_data.values())
 
-        # Extract filter parameters from the request
+        # Extract and parse filter parameters from the request
         event_type_filter = request.args.get('type')
+        target_audience_filter = request.args.get('target_audience')
         location_filter = request.args.get('location')
         price_min = request.args.get('price_min')
         price_max = request.args.get('price_max')
 
-        # Apply filters to narrow down the search results
-        filtered_results = event_list
+        # Function to safely parse dates in different formats
+        def safe_parse_date(date_str):
+            for fmt in ('%d/%m/%Y', '%Y-%m-%d'):  # Add more formats here if needed
+                try:
+                    return datetime.strptime(date_str, fmt)
+                except (ValueError, TypeError):
+                    continue
+            return None
 
-        if event_type_filter:
-            filtered_results = [item for item in filtered_results if item.get('type') == event_type_filter]
+        date_min = safe_parse_date(request.args.get('date_min'))
+        date_max = safe_parse_date(request.args.get('date_max'))
 
-        if location_filter:
-            filtered_results = [item for item in filtered_results if item.get('location') == location_filter]
+        # Apply filters
+        filtered_results = []
+        for item in event_list:
+            # Text check in name, description, and location
+            text_check = any(query in item.get(field, '').lower() for field in ['event_name', 'description', 'location'])
 
-        if price_min or price_max:
-            filtered_results = [item for item in filtered_results if price_min <= float(item.get('price', 0)) <= price_max]
+            # Exact match checks for type and target audience
+            type_check = item.get('type') == event_type_filter if event_type_filter else True
+            audience_check = item.get('target_audience') == target_audience_filter if target_audience_filter else True
 
-        # Apply text search query in "event_name" and "description" fields
-        search_results = [item for item in filtered_results if query in item.get('event_name', '').lower() or query in item.get('description', '').lower()]
+            # Price range check
+            price = float(item.get('price', 0))
+            price_check = (price_min <= price if price_min else True) and (price <= price_max if price_max else True)
 
-        return jsonify(search_results), 200
+            # Date range check, ensuring event dates are in the future
+            event_date = safe_parse_date(item.get('date'))
+            date_check = event_date and event_date >= current_date
+            if date_min:
+                date_check = date_check and event_date >= date_min
+            if date_max:
+                date_check = date_check and event_date <= date_max
+
+            if text_check and type_check and audience_check and price_check and date_check:
+                filtered_results.append(item)
+
+        return jsonify(filtered_results), 200
 
     except Exception as e:
         return jsonify({'message': 'An error occurred: ' + str(e)}), 500
