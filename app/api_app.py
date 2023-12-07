@@ -267,6 +267,7 @@ def delete_user(userID):
         return jsonify({'message': 'User deleted successfully'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
 @api_app.route('/api/users/picture/<userID>', methods=['POST'])
 @cross_origin(supports_credentials=True)
 @check_token
@@ -312,16 +313,20 @@ def upload_picture(userID):
 @check_token
 def get_picture(userID):
     try:
-        user_doc = db.child('users').child(userID).get()
-        if user_doc.val() is None:
+        # Fetch the user's document
+        user_doc = db.child('users').child(userID).get().val()
+        if user_doc is None:
             return jsonify({'error': 'User not found'}), 404
-        url = pb_storage.child("images/"+userID).get_url(None)
-        # Update the user's document in Firestore with the picture URL
-        if url is None:
-            return jsonify({'message': 'Picture not found'})
-        return jsonify({'message': 'Picture found successfully', 'url': url})
+
+        # Check if the user's picture URL is stored in the user document
+        picture_url = user_doc.get('picture_url')
+        if picture_url:
+            return jsonify({'message': 'Picture found successfully', 'url': picture_url})
+        else:
+            return jsonify({'error': 'Picture not found'}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 
 #Api to get all the events that exist
