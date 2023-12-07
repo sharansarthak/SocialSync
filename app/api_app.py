@@ -336,7 +336,7 @@ def get_all_events():
         return jsonify({'error': str(e)}), 500
 
 #Api to get an event by event ID
-@api_app.route('/api/events/<int:event_id>', methods=['GET'])
+@api_app.route('/api/events/<event_id>', methods=['GET'])
 @cross_origin(supports_credentials=True)
 @check_token
 def get_event(event_id):
