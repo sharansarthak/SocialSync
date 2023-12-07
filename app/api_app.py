@@ -197,8 +197,7 @@ def update_user(userID):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-
-#Api to add user Rating
+# Add user rating
 @api_app.route('/api/users/add/rating/', methods=['POST'])
 @cross_origin(supports_credentials=True)
 @check_token
@@ -207,29 +206,40 @@ def add_user_rating():
         data = request.json
         userID = data.get("userID")
         rating = data.get("rating")
-        current_rating = db.child('users').child(userID).child('rating').get().val()
-        if current_rating is None:
-            return jsonify({"message": 'Error finding user'}), 404
+
+        if not userID or rating is None:
+            return jsonify({"message": 'Error: Missing userID or rating'}), 400
+
+        user_ref = db.child('users').child(userID)
+        user_data = user_ref.get().val()
+
+        if user_data is None:
+            return jsonify({"message": 'User not found'}), 404
+
+        current_rating = user_data.get('rating', [])
         current_rating.append(rating)
+        user_ref.update({'rating': current_rating})
 
-        return jsonify({'Message' : 'Rating added'}), 200
+        return jsonify({'message': 'Rating added successfully'}), 200
     except Exception as e:
-        print(e)
-        return jsonify({'Message' : 'Failed to add rating'}), 500
+        return jsonify({'message': 'Failed to add rating', 'error': str(e)}), 500
 
-#Api to add user Rating
+
+#Api to get user Rating
 @api_app.route('/api/users/rating/<userID>', methods=['GET'])
 @cross_origin(supports_credentials=True)
 @check_token
 def get_user_rating(userID):
     try:
-        rating = db.child('users').child(userID).child('rating').get().val()     
-        if rating is None:
-            return jsonify({"message": 'Error finding user'}), 404
-        return jsonify({'rating' : rating}), 200
+        user_data = db.child('users').child(userID).get().val()
+        if user_data is None:
+            return jsonify({"message": 'User not found'}), 404
+
+        rating = user_data.get('rating', [])
+        return jsonify({'rating': rating}), 200
     except Exception as e:
-        print(e)
-        return jsonify({'Message' : 'Failed to get rating'}), 500
+        return jsonify({'message': 'Failed to get rating', 'error': str(e)}), 500
+
 
 #Api to Get the user data, return a success message
 @api_app.route('/api/users/<userID>', methods=['GET'])
@@ -496,7 +506,7 @@ def update_event(event_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# API to add events interested in for a user
+#Add events to interested for user
 @api_app.route('/api/users/<userID>/interests/add', methods=['POST'])
 @cross_origin(supports_credentials=True)
 @check_token
@@ -508,18 +518,76 @@ def add_event_to_interested(userID):
         if not event_id:
             return jsonify({'message': 'Error: Missing event_id'}), 400
 
+        # Check if the event exists
+        event_data = db.child("events").child(event_id).get().val()
+        if event_data is None:
+            return jsonify({'message': 'Event not found'}), 404
+
         # Fetch the user's current data
         user_data = db.child("users").child(userID).get().val()
         if user_data is None:
             return jsonify({'message': 'User not found'}), 404
 
-        # Add the event ID to the user's events_interested list
-        events_interested = user_data.get('events_interested', [])
-        if event_id not in events_interested:
-            events_interested.append(event_id)
-            db.child('users').child(userID).update({'events_interested': events_interested})
+        # Update user's events_interested and events_enrolled lists
+        for list_name in ['events_interested', 'events_enrolled']:
+            events_list = user_data.get(list_name, [])
+            if event_id not in events_list:
+                events_list.append(event_id)
+                user_data[list_name] = events_list
 
-        return jsonify({'message': 'Event added to interested list'})
+        db.child('users').child(userID).update(user_data)
+
+        # Add user to event's attendees list
+        attendees = event_data.get('attendees', [])
+        if userID not in attendees:
+            attendees.append(userID)
+            db.child("events").child(event_id).update({'attendees': attendees})
+
+        return jsonify({'message': 'Event added to interested and enrolled lists'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+#API to unenroll from an event
+@api_app.route('/api/users/<userID>/events/unenroll', methods=['POST'])
+@cross_origin(supports_credentials=True)
+@check_token
+def unenroll_from_event(userID):
+    try:
+        data = request.json
+        event_id = data.get('event_id')
+        
+        if not event_id:
+            return jsonify({'message': 'Error: Missing event_id'}), 400
+
+        # Check if the event exists
+        event_data = db.child("events").child(event_id).get().val()
+        if event_data is None:
+            return jsonify({'message': 'Event not found'}), 404
+
+        # Fetch the user's current data
+        user_data = db.child("users").child(userID).get().val()
+        if user_data is None:
+            return jsonify({'message': 'User not found'}), 404
+
+        # Update logic for both events_enrolled and events_interested lists
+        updated = False
+        for list_name in ['events_enrolled', 'events_interested']:
+            events_list = user_data.get(list_name, [])
+            if event_id in events_list:
+                events_list.remove(event_id)
+                user_data[list_name] = events_list
+                updated = True
+
+        if updated:
+            db.child('users').child(userID).update(user_data)
+
+        # Optionally, remove the user from the event's attendees list
+        if userID in event_data.get('attendees', []):
+            attendees = event_data['attendees']
+            attendees.remove(userID)
+            db.child("events").child(event_id).update({'attendees': attendees})
+
+        return jsonify({'message': 'Successfully unenrolled from and removed interest in the event'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
