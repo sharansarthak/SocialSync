@@ -1,3 +1,5 @@
+import re
+
 def is_valid_email(email):
     # Simple regex for validating an email
     return re.match(r"[^@]+@[^@]+\.[^@]+", email)
