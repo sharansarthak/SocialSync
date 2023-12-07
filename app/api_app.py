@@ -744,7 +744,7 @@ def search():
 
         # Apply filters
         filtered_results = []
-        for item in event_list:
+        for event_id, item in all_data.items():
             # Text check in name, description, and location
             text_check = any(query in item.get(field, '').lower() for field in ['event_name', 'description', 'location'])
 
@@ -765,8 +765,9 @@ def search():
                 date_check = date_check and event_date <= date_max
 
             if text_check and type_check and audience_check and price_check and date_check:
-                filtered_results.append(item)
-
+                item_with_id = item.copy()
+                item_with_id['id'] = event_id  # Add the event ID
+                filtered_results.append(item_with_id)
         return jsonify(filtered_results), 200
 
     except Exception as e:
