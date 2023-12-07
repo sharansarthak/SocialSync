@@ -371,16 +371,13 @@ def get_user_events(userID):
         if userData is None:
             return jsonify({'message': 'User not found'}), 404
 
-        def split_event_ids(event_ids_str):
-            # Split the string into a list, remove 'none', and filter out empty strings
-            return [eid for eid in event_ids_str.split(',') if eid and eid != 'none']
-
-        events_interested_ids = split_event_ids(userData.get('events_interested', ''))
-        events_enrolled_ids = split_event_ids(userData.get('events_enrolled', ''))
-        events_created_ids = split_event_ids(userData.get('events_created', ''))
+        # Fetch events directly from the lists
+        events_interested_ids = userData.get('events_interested', [])
+        events_enrolled_ids = userData.get('events_enrolled', [])
+        events_created_ids = userData.get('events_created', [])
 
         def fetch_events(event_ids):
-            return [db.child("events").child(eid).get().val() for eid in event_ids]
+            return [db.child("events").child(eid).get().val() for eid in event_ids if eid]
 
         all_events_id = set(events_interested_ids + events_enrolled_ids + events_created_ids)
         interested_events = fetch_events(events_interested_ids)
@@ -427,9 +424,14 @@ def get_interested_events(userID):
 def create_event(userID):
     try:
         data = request.json
-        required_fields = ['event_name', 'event_type', 'event_date', 'event_time', 'event_details', 'event_location', 'price', 'numOfParticipants', 'event_target_audience']
-        if not all(data.get(field) for field in required_fields):
-            return jsonify({'message': 'Error missing fields'}), 400
+        required_fields = ['event_name', 'event_type', 'event_date', 'event_time', 
+                           'event_details', 'event_location', 'price', 'numOfParticipants', 
+                           'event_target_audience']
+
+        # Check for missing fields
+        missing_fields = [field for field in required_fields if field not in data or data.get(field) is None]
+        if missing_fields:
+            return jsonify({'message': f'Error: Missing fields - {", ".join(missing_fields)}'}), 400
 
         # Generate a unique ID for the new event using UUID
         uniqueID = str(uuid4())
