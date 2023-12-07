@@ -420,7 +420,7 @@ def get_interested_events(userID):
 #Api to create an event
 @api_app.route('/api/events/createEvent/<userID>', methods=['POST'])
 @check_token
-@cross_origin(supports_credentials=True)
+@cross_origin(origin='http://localhost:3000', supports_credentials=True)
 def create_event(userID):
     try:
         data = request.json
@@ -471,26 +471,31 @@ def update_event(event_id):
     try:
         data = request.json
         event = db.child("events").child(event_id).get().val()
-        newEventData = json.dumps({
-          "event_name" : data.get('event_name'),
-          "type" : data.get('event_type'),
-          "date" : data.get('event_date'),
-          "time" : data.get('event_time'),
-          "description" : data.get('event_details'),
-          "location" : data.get('event_location'),
-          "attendees" : event.get("attendees"),
-          "price" : data.get('price'),
-          "numOfParticipants" : data.get('numOfParticipants'),
-          "target_audience" : data.get('event_target_audience'),
-          "images" : ""
-        })
-        if event is not None:
-            db.child("events").child(event_id).update(data)
-            return jsonify(event)
-        else:
+
+        if event is None:
             return jsonify({'message': 'Event not found'}), 404
+
+        # Prepare the new event data
+        updated_event_data = {
+            "event_name": data.get('event_name', event.get('event_name')),
+            "type": data.get('event_type', event.get('type')),
+            "date": data.get('event_date', event.get('date')),
+            "time": data.get('event_time', event.get('time')),
+            "description": data.get('event_details', event.get('description')),
+            "location": data.get('event_location', event.get('location')),
+            "price": data.get('price', event.get('price')),
+            "numOfParticipants": data.get('numOfParticipants', event.get('numOfParticipants')),
+            "target_audience": data.get('event_target_audience', event.get('target_audience')),
+            # Assuming 'images' is a field in your event data
+            "images": data.get('images', event.get('images', []))
+        }
+
+        db.child("events").child(event_id).update(updated_event_data)
+        return jsonify(updated_event_data)
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 #Api to delete an event
 @api_app.route('/api/events/<int:event_id>', methods=['DELETE'])
