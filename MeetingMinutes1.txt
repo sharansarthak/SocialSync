@@ -1,0 +1,38 @@
+Meeting Minutes - Meeting 1
+
+Date: 6th Nov
+
+Attendees:
+
+Ehab Islam
+Sarthak Sharan
+Mahira Zabin
+Zeyad Omran
+
+Agenda: Project Brainstorming, Idea Selection, and Team Allocation
+
+Come up with innovative project ideas.
+Unanimously decided on developing a social app, picked SocialSync as our name, aimed at addressing the reduction in real-world interactions between people with similar interests.
+
+Allocated project roles:
+Sarthak and Ehab to focus on backend development.
+Mahira and Zeyad assigned to frontend development.
+
+Discussion: Front-end and Back-end Technologies
+
+Front-end:
+
+Using NextJS for dynamic front-end experience.
+Integrating Redux for state management.
+Use Tailwind CSS for styling.
+Our primary programming language is TypeScript.
+Considered Formik for form management.
+Back-end:
+
+Discussed using Python and Flask for efficient back-end operations.
+Considered Firebase for certain functionalities.
+Decided on Cloud Run for deployment, with hosting on Google Cloud.
+Action Items:
+
+Each team member to explore and gain familiarity with selected technologies.
+Begin individual research and exploration of the allocated project areas.

@@ -1,0 +1,22 @@
+Meeting Minutes - Meeting 2
+
+Date: 14th Nov
+
+Attendees:
+
+Ehab Islam
+Sarthak Sharan
+Mahira Zabin
+Zeyad Omran
+
+Agenda: Mockup Design Discussion
+
+Good progress on web design on Figma.
+Discussed the overall look and feel of the app.
+Decided on the number of pages to be included.
+Considered user flow and interactions within the app.
+
+Action Items:
+
+Continue refining the mockup based on team feedback.
+Ensure everyone is aligned with the design direction - message on discord if anything is needed.

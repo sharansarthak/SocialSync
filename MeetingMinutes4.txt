@@ -1,0 +1,23 @@
+Meeting Minutes - Meeting 4
+
+Date: 24th Nov
+
+Attendees:
+
+Ehab Islam
+Sarthak Sharan
+Mahira Zabin
+Zeyad Omran
+
+Agenda: API Structure and Deployment Discussion
+
+Discussed API breakdown utilizing database tables.
+Defined endpoints and structures for user and event tables.
+Explored coding structure and app architecture.
+Decided to deploy the backend on Google Cloud.
+Chose Vercel for front-end deployment.
+
+Action Items:
+
+Continue coding based on the finalized architecture.
+Ensure compatibility between front-end and back-end structures./Users/mahirazabin/Desktop/MeetingMinutes4.txt
