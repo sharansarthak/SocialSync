@@ -419,8 +419,8 @@ def get_interested_events(userID):
 
 #Api to create an event
 @api_app.route('/api/events/createEvent/<userID>', methods=['POST'])
+@cross_origin(supports_credentials=True)
 @check_token
-@cross_origin(origin='http://localhost:3000', supports_credentials=True)
 def create_event(userID):
     try:
         data = request.json
@@ -514,7 +514,7 @@ def delete_event(event_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@api_app.route('/api/picture/event/<eventID>', methods=['POST'])
+@api_app.route('/api/event/picture/<eventID>', methods=['POST'])
 @cross_origin(supports_credentials=True)
 @check_token
 def upload_picture_event(eventID):
