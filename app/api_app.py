@@ -408,24 +408,30 @@ def get_user_events(userID):
 
 
 #Api to get all the events the user is interested in
-@api_app.route('/api/events/user/interested/<userID>', methods=['GET'])
+@api_app.route('/api/users/<userID>/events/interested', methods=['GET'])
 @cross_origin(supports_credentials=True)
 @check_token
-def get_interested_events(userID):
+def get_user_interested_events(userID):
     try:
-        # Implement logic to retrieve a specific event
-        userData = db.child("users").child(userID).get().val()
-        if userData is not None:
-            events_interested_ids = userData['events_interested'].strip(",").split(",")
-            interested_events = []
-            for id in events_interested_ids:
-                event = db.child("events").child(id).get().val()
-                interested_events.append(event)
-            return jsonify(interested_events)
-        else:
-            return jsonify({'message': 'Event not found'}), 404
+        # Fetch the user's data
+        user_data = db.child("users").child(userID).get().val()
+        if user_data is None:
+            return jsonify({'message': 'User not found'}), 404
+
+        # Retrieve the list of interested event IDs
+        interested_event_ids = user_data.get('events_interested', [])
+
+        # Fetch details for each interested event
+        interested_events = []
+        for event_id in interested_event_ids:
+            event_data = db.child("events").child(event_id).get().val()
+            if event_data:
+                interested_events.append(event_data)
+
+        return jsonify({'interested_events': interested_events})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 #Api to create an event
 @api_app.route('/api/events/createEvent/<userID>', methods=['POST'])
