@@ -464,7 +464,7 @@ def create_event(userID):
         return jsonify({'error': str(e)}), 500
     
 #Api to update the event data
-@api_app.route('/api/events/<int:event_id>', methods=['PUT'])
+@api_app.route('/api/events/<event_id>', methods=['PUT'])
 @cross_origin(supports_credentials=True)
 @check_token
 def update_event(event_id):
@@ -514,47 +514,61 @@ def delete_event(event_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-#Api to upload a picture for the event
 @api_app.route('/api/picture/event/<eventID>', methods=['POST'])
 @cross_origin(supports_credentials=True)
 @check_token
 def upload_picture_event(eventID):
     try:
-        # Check if 'picture' is present in the request files
-        if 'image' not in request.files:
-            return jsonify({'error': 'No file part'}), 400
+        # Check if files are present in the request
+        if 'images' not in request.files:
+            return jsonify({'error': 'No files part'}), 400
 
-        file = request.files['image']
-        # Check if the filename is not empty
-        if file.filename == '':
-            return jsonify({'error': 'No selected file'}), 400
+        files = request.files.getlist('images')
 
-        # Validate that the user ID is provided
+        # Check if there are files selected
+        if not files or all(file.filename == '' for file in files):
+            return jsonify({'error': 'No selected files'}), 400
+
+        # Validate that the event ID is provided
         if not eventID:
             return jsonify({'error': 'Event ID is missing'}), 400
 
-        # Check if the user exists in Firestore
-        event_doc = db.child('users').child(eventID).get()
+        # Check if the event exists in Firestore
+        event_doc = db.child('events').child(eventID).get()
         if event_doc.val() is None:
             return jsonify({'error': 'Event not found'}), 404
 
-        filename = secure_filename(file.filename)
+        # Process each file
+        urls = []
+        for file in files:
+            # Validate the file type
+            if not allowed_file(file.filename):
+                continue  # Skip invalid file types
 
-        # Define the path where the file will be uploaded
-        path = "images/" + eventID + "/" + filename
-        pb_storage.child(path).put(file)
+            filename = secure_filename(file.filename)
+            path = f"images/events/{eventID}/{filename}"
+            pb_storage.child(path).put(file)
+            url = pb_storage.child(path).get_url()  # Assuming public URL generation
+            urls.append(url)
 
-        # Make the blob publicly accessible
-        url = pb_storage.child(path).get_url(request.headers.get('Authorization'))
-        # Update the user's document in Firestore with the picture URL
-        event_doc_dict =  event_doc.val()
-        event_doc_dict['images'].append(url)
-        db.child('events').child(eventID).remove()
-        db.child('events').child(eventID).set(event_doc_dict)
+        if not urls:
+            return jsonify({'error': 'No valid images were uploaded'}), 400
 
-        return jsonify({'message': 'Picture uploaded successfully', 'url': url})
+        # Update the event's document in Firestore with the picture URLs
+        event_doc_dict = event_doc.val()
+        event_doc_dict.setdefault('images', []).extend(urls)
+        db.child('events').child(eventID).update(event_doc_dict)
+
+        return jsonify({'message': 'Pictures uploaded successfully', 'urls': urls})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+def allowed_file(filename):
+    # Function to check if the file is an allowed type (e.g., image)
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
 
 #Api route to get event pictures
 @api_app.route('/api/events/picture/<eventID>', methods=['GET'])
