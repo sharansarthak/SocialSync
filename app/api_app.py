@@ -342,7 +342,7 @@ def get_event(event_id):
 
 
 #Api to get an event by event ID List
-@api_app.route('/api/events/eventIDs', methods=['GET'])
+@api_app.route('/api/events/eventIDs', methods=['POST'])
 @cross_origin(supports_credentials=True)
 @check_token
 def get_event_with_IDs():
@@ -496,23 +496,65 @@ def update_event(event_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# API to add events interested in for a user
+@api_app.route('/api/users/<userID>/interests/add', methods=['POST'])
+@cross_origin(supports_credentials=True)
+@check_token
+def add_event_to_interested(userID):
+    try:
+        data = request.json
+        event_id = data.get('event_id')
+        
+        if not event_id:
+            return jsonify({'message': 'Error: Missing event_id'}), 400
 
-#Api to delete an event
-@api_app.route('/api/events/<int:event_id>', methods=['DELETE'])
+        # Fetch the user's current data
+        user_data = db.child("users").child(userID).get().val()
+        if user_data is None:
+            return jsonify({'message': 'User not found'}), 404
+
+        # Add the event ID to the user's events_interested list
+        events_interested = user_data.get('events_interested', [])
+        if event_id not in events_interested:
+            events_interested.append(event_id)
+            db.child('users').child(userID).update({'events_interested': events_interested})
+
+        return jsonify({'message': 'Event added to interested list'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@api_app.route('/api/event/<event_id>', methods=['DELETE'])
 @cross_origin(supports_credentials=True)
 @check_token
 def delete_event(event_id):
     try:
-        data = request.json
-        # add logic to remove deleted event from users 
+        # Check if the event exists
         event = db.child("events").child(event_id).get().val()
-        if event is not None:
-            db.child("events").child(event_id).remove()
-            return jsonify({'message': 'Event Deleted'})
-        else:
+        if event is None:
             return jsonify({'message': 'Event not found'}), 404
+
+        # Remove the event from the database
+        db.child("events").child(event_id).remove()
+
+        # Retrieve all users
+        all_users = db.child("users").get().val()
+        if all_users:
+            for user_id, user_data in all_users.items():
+                updated = False
+                # Check and remove event ID from each user's lists
+                for field in ['events_interested', 'events_enrolled', 'events_created']:
+                    if event_id in user_data.get(field, []):
+                        user_data[field].remove(event_id)
+                        updated = True
+                # Update the user data if any changes were made
+                if updated:
+                    db.child('users').child(user_id).update(user_data)
+
+        return jsonify({'message': 'Event Deleted'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @api_app.route('/api/event/picture/<eventID>', methods=['POST'])
 @cross_origin(supports_credentials=True)
@@ -569,9 +611,8 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-
 #Api route to get event pictures
-@api_app.route('/api/events/picture/<eventID>', methods=['GET'])
+@api_app.route('/api/event/picture/<eventID>', methods=['GET'])
 @cross_origin(supports_credentials=True)
 @check_token
 def get_picture_event(eventID):
